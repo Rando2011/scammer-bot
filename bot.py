@@ -114,6 +114,191 @@ def is_admin(user_id):
 
     return cursor.fetchone() is not None
 
+async def auto_scam_detector(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not update.effective_user:
+        return
+
+    if update.effective_chat.type == "private":
+        return
+
+    user_id = update.effective_user.id
+
+    cursor.execute(
+        "SELECT username, reason FROM scams WHERE user_id=?",
+        (user_id,)
+    )
+
+    scammer = cursor.fetchone()
+
+    if not scammer:
+        return
+
+    username = (
+        f"@{update.effective_user.username}"
+        if update.effective_user.username
+        else scammer[0]
+    )
+
+    await update.message.reply_text(
+        "╔═══━━━─── • ───━━━═══╗\n"
+        "🚨 SCAMMER DETECTED 🚨\n"
+        "╚═══━━━─── • ───━━━═══╝\n\n"
+        "⚠️ သူက Scammer ပါ\n"
+        "🛡 သတိထားကြပါ\n\n"
+        f"👤 Username » {username}\n"
+        f"🆔 ID » <code>{user_id}</code>\n"
+        "🏷 Status » Scammer",
+        parse_mode="HTML"
+    )
+
+async def groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_user.id != OWNER_ID:
+
+        await update.message.reply_text(
+            "❌ Owner only"
+        )
+
+        return
+
+    await client.start()
+
+    dialogs = await client.get_dialogs()
+
+    text = (
+        "╔═══━━━─── • ───━━━═══╗\n"
+        "👑 BOT ADMIN GROUPS 👑\n"
+        "╚═══━━━─── • ───━━━═══╝\n\n"
+    )
+
+    count = 0
+
+    for dialog in dialogs:
+
+        if dialog.is_group:
+
+            try:
+
+                bot_member = await context.bot.get_chat_member(
+                    dialog.id,
+                    context.bot.id
+                )
+
+                if bot_member.status not in [
+                    "administrator",
+                    "creator"
+                ]:
+                    continue
+
+            except:
+                continue
+
+            count += 1
+
+            title = html.escape(str(dialog.name))
+
+            username = (
+                f"@{html.escape(str(dialog.entity.username))}"
+                if getattr(dialog.entity, "username", None)
+                else "No Username"
+            )
+
+            group_id = html.escape(str(dialog.id))
+
+            line = (
+                f"{count}. {title}\n"
+                f"🔗 {username}\n"
+                f"🆔 <code>{group_id}</code>\n\n"
+            )
+
+            if len(text + line) > 3800:
+
+                await update.message.reply_text(
+                    text,
+                    parse_mode="HTML"
+                )
+
+                text = ""
+
+            text += line
+
+    text += (
+        "━━━━━━━━━━━━━━━\n"
+        f"📊 Total Admin Groups » {count}"
+    )
+
+    if text:
+
+        await update.message.reply_text(
+            text,
+            parse_mode="HTML"
+        )
+
+async def scamlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    cursor.execute(
+        "SELECT username, user_id FROM scams"
+    )
+
+    rows = cursor.fetchall()
+
+    if not rows:
+
+        await update.message.reply_text(
+            "✅ Scam list empty"
+        )
+
+        return
+
+    text = (
+        "╔═══━━━─── • ───━━━═══╗\n"
+        "🚨 𝗦𝗖𝗔𝗠 𝗟𝗜𝗦𝗧 🚨\n"
+        "╚═══━━━─── • ───━━━═══╝\n\n"
+    )
+
+    count = 1
+
+    for row in rows:
+
+        try:
+
+            username = html.escape(str(row[0]))
+            user_id = html.escape(str(row[1]))
+
+        except:
+
+            username = "Unknown"
+            user_id = "Unknown"
+
+        line = (
+            f"{count}. {username}\n"
+            f"🆔 ID » <code>{user_id}</code>\n\n"
+        )
+
+        if len(text + line) > 3800:
+
+            await update.message.reply_text(
+                text,
+                parse_mode="HTML"
+            )
+
+            text = ""
+
+        text += line
+
+        count += 1
+
+    text += (
+        "━━━━━━━━━━━━━━━\n"
+        f"📊 Total Scammers » {len(rows)}"
+    )
+
+    await update.message.reply_text(
+        text,
+        parse_mode="HTML"
+    )
+
 async def userinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_user.id != OWNER_ID:
@@ -478,48 +663,6 @@ async def removeadmin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🆔 ID » {admin_id}"
     )
 
-async def scamlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    cursor.execute(
-        "SELECT username, user_id FROM scams"
-    )
-
-    rows = cursor.fetchall()
-
-    if not rows:
-
-        await update.message.reply_text(
-            "✅ Scam list empty"
-        )
-
-        return
-
-    text = (
-
-        "╔═══━━━─── • ───━━━═══╗\n"
-        "🚨 𝗦𝗖𝗔𝗠 𝗟𝗜𝗦𝗧 🚨\n"
-        "╚═══━━━─── • ───━━━═══╝\n\n"
-    )
-
-    count = 1
-
-    for row in rows:
-
-        username = row[0]
-
-        user_id = row[1]
-
-        text += (
-            f"{count}. {username}\n"
-            f" ID » <code>{user_id}</code>\n\n"
-    )
-
-        count += 1
-
-    await update.message.reply_text(
-        text[:4000],
-        parse_mode="HTML"
-    )
 
 
 async def admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -683,35 +826,35 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚡ Searching..."
     )
 
-    await asyncio.sleep(4.2)
+    await asyncio.sleep(3)
 
     await loading.edit_text(
         "███▒▒▒▒▒▒▒ 27%\n"
         "⚡ Searching..."
     )
 
-    await asyncio.sleep(4.2)
+    await asyncio.sleep(3)
 
     await loading.edit_text(
         "█████▒▒▒▒▒ 43%\n"
         "⚡ Searching..."
     )
 
-    await asyncio.sleep(4.2)
+    await asyncio.sleep(3)
 
     await loading.edit_text(
         "███████▒▒▒ 61%\n"
         "⚡ Searching..."
     )
 
-    await asyncio.sleep(4.2)
+    await asyncio.sleep(3.2)
 
     await loading.edit_text(
         "████████▒▒ 78%\n"
         "⚡ Searching..."
     )
 
-    await asyncio.sleep(4.2)
+    await asyncio.sleep(5)
 
     await loading.edit_text(
         "█████████▒ 91%\n"
@@ -858,7 +1001,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     scam_keywords = [
                         "scam",
                         "scammer",
-                        "fake"
+                        "Scm"
                     ]
 
                     keyword_found = any(
@@ -917,6 +1060,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     scam_keywords = [
                         "scam",
                         "scammer"
+                        "scm "
                     ]
 
                     keyword_found = any(
@@ -965,15 +1109,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    if update.message is None:
+        return
+
     if len(context.args) < 2:
         await update.message.reply_text(
-            "သုံးနည်း:\n/report @username reason"
+            "သုံးနည်း:\n"
+            "1. Proof photo ကိုပို့\n"
+            "2. အဲ့ photo ကို Reply ပြန်ပြီး /report @username reason"
         )
         return
 
     target = context.args[0].strip()
     reason = " ".join(context.args[1:])
-
     reporter_id = update.effective_user.id
 
     cursor.execute(
@@ -981,9 +1129,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (reporter_id,)
     )
 
-    scammer_reporter = cursor.fetchone()
-
-    if scammer_reporter:
+    if cursor.fetchone():
         await update.message.reply_text(
             "❌ Scam database ထဲရှိသူများ report တင်လို့မရပါ"
         )
@@ -994,6 +1140,14 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.username
         else "No Username"
     )
+
+    proof_photo = None
+
+    if (
+        update.message.reply_to_message
+        and update.message.reply_to_message.photo
+    ):
+        proof_photo = update.message.reply_to_message.photo[-1].file_id
 
     try:
         await client.start()
@@ -1038,21 +1192,31 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
-    await context.bot.send_message(
-        chat_id=OWNER_ID,
-        text=(
-            "╔═══━━━─── • ───━━━═══╗\n"
-            "🚨 NEW SCAM REPORT 🚨\n"
-            "╚═══━━━─── • ───━━━═══╝\n\n"
-            f"🆔 Report ID » {report_id}\n\n"
-            f"👤 Reported User » {username}\n"
-            f"🆔 User ID » {user_id}\n"
-            f"📝 Reason » {reason}\n\n"
-            f"👮 Reporter » {reporter_username}\n"
-            f"🆔 Reporter ID » {reporter_id}"
-        ),
-        reply_markup=InlineKeyboardMarkup(keyboard)
+    owner_text = (
+        "╔═══━━━─── • ───━━━═══╗\n"
+        "🚨 NEW SCAM REPORT 🚨\n"
+        "╚═══━━━─── • ───━━━═══╝\n\n"
+        f"🆔 Report ID » {report_id}\n\n"
+        f"👤 Reported User » {username}\n"
+        f"🆔 User ID » {user_id}\n"
+        f"📝 Reason » {reason}\n\n"
+        f"👮 Reporter » {reporter_username}\n"
+        f"🆔 Reporter ID » {reporter_id}"
     )
+
+    if proof_photo:
+        await context.bot.send_photo(
+            chat_id=OWNER_ID,
+            photo=proof_photo,
+            caption=owner_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=OWNER_ID,
+            text=owner_text + "\n\n📸 Proof » No Photo",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     await update.message.reply_text(
         "✅ Report တင်ပြီးပါပြီ။\n\n"
@@ -1065,7 +1229,10 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.from_user.id != OWNER_ID:
-        await query.answer("Owner only", show_alert=True)
+        await query.answer(
+            "Owner only",
+            show_alert=True
+        )
         return
 
     data = query.data
@@ -1078,7 +1245,8 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     cursor.execute(
         """
-        SELECT user_id, username, reason, reporter_id, reporter_username, status
+        SELECT user_id, username, reason,
+        reporter_id, reporter_username, status
         FROM reports
         WHERE report_id=?
         """,
@@ -1088,13 +1256,38 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     report_data = cursor.fetchone()
 
     if not report_data:
-        await query.edit_message_text("❌ Report မတွေ့ပါ")
+
+        try:
+            await query.edit_message_caption(
+                "❌ Report မတွေ့ပါ"
+            )
+        except:
+            await query.edit_message_text(
+                "❌ Report မတွေ့ပါ"
+            )
+
         return
 
-    user_id, username, reason, reporter_id, reporter_username, status = report_data
+    (
+        user_id,
+        username,
+        reason,
+        reporter_id,
+        reporter_username,
+        status
+    ) = report_data
 
     if status != "pending":
-        await query.edit_message_text("⚠️ ဒီ report ကို already review လုပ်ပြီးပါပြီ")
+
+        try:
+            await query.edit_message_caption(
+                "⚠️ ဒီ report ကို already review လုပ်ပြီးပါပြီ"
+            )
+        except:
+            await query.edit_message_text(
+                "⚠️ ဒီ report ကို already review လုပ်ပြီးပါပြီ"
+            )
+
         return
 
     if action == "report_approve":
@@ -1107,6 +1300,7 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         already = cursor.fetchone()
 
         if not already:
+
             cursor.execute(
                 "INSERT INTO scams VALUES (?, ?, ?, ?)",
                 (
@@ -1136,7 +1330,7 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         conn.commit()
 
-        await query.edit_message_text(
+        approve_text = (
             "╔═══━━━─── • ───━━━═══╗\n"
             "✅ REPORT APPROVED ✅\n"
             "╚═══━━━─── • ───━━━═══╝\n\n"
@@ -1147,10 +1341,19 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
+            await query.edit_message_caption(
+                caption=approve_text
+            )
+        except:
+            await query.edit_message_text(
+                approve_text
+            )
+
+        try:
             await context.bot.send_message(
                 chat_id=reporter_id,
                 text=(
-                    "✅ သင့် report ကို Owner က Approved လုပ်ပြီးပါပြီ။\n\n"
+                    "✅ သင့် report ကို Owner က Approved လုပ်ပြီးပါပြီ。\n\n"
                     f"👤 User » {username}\n"
                     f"📝 Reason » {reason}"
                 )
@@ -1167,7 +1370,7 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         conn.commit()
 
-        await query.edit_message_text(
+        reject_text = (
             "╔═══━━━─── • ───━━━═══╗\n"
             "❌ REPORT REJECTED ❌\n"
             "╚═══━━━─── • ───━━━═══╝\n\n"
@@ -1176,10 +1379,19 @@ async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         try:
+            await query.edit_message_caption(
+                caption=reject_text
+            )
+        except:
+            await query.edit_message_text(
+                reject_text
+            )
+
+        try:
             await context.bot.send_message(
                 chat_id=reporter_id,
                 text=(
-                    "❌ သင့် report ကို Owner က Reject လုပ်ထားပါတယ်။\n\n"
+                    "❌ သင့် report ကို Owner က Reject လုပ်ထားပါတယ်。\n\n"
                     f"👤 User » {username}"
                 )
             )
@@ -1200,10 +1412,10 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     username = context.args[0].strip()
     reason = " ".join(context.args[1:])
+
     reporter = (
         update.effective_user.username
-        or
-        str(update.effective_user.id)
+        or str(update.effective_user.id)
     )
 
     loading = await update.message.reply_text(
@@ -1211,11 +1423,9 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-
         await client.start()
 
         user = await client.get_entity(username)
-
         user_id = user.id
 
         current_username = (
@@ -1236,7 +1446,6 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         old = cursor.fetchone()
 
         if old:
-
             await loading.edit_text(
                 f"⚠️ Already Added\n\n"
                 f"👤 Saved Username » {old[0]}\n"
@@ -1244,7 +1453,6 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📝 Old Reason » {old[1]}\n\n"
                 f"❌ This account already exists."
             )
-
             return
 
         cursor.execute(
@@ -1274,6 +1482,27 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         conn.commit()
 
+        admin_username = (
+            f"@{update.effective_user.username}"
+            if update.effective_user.username
+            else "No Username"
+        )
+
+        await context.bot.send_message(
+            chat_id=OWNER_ID,
+            text=(
+                "╔═══━━━─── • ───━━━═══╗\n"
+                "🚨 NEW SCAMMER ADDED 🚨\n"
+                "╚═══━━━─── • ───━━━═══╝\n\n"
+                f"👮 Admin » {admin_username}\n"
+                f"🆔 Admin ID » <code>{update.effective_user.id}</code>\n\n"
+                f"👤 Added User » {current_username}\n"
+                f"🆔 User ID » <code>{user_id}</code>\n"
+                f"📝 Reason » {reason}"
+            ),
+            parse_mode="HTML"
+        )
+
         await loading.edit_text(
             f"🚨 Scam Added\n\n"
             f"👤 Username » {current_username}\n"
@@ -1282,7 +1511,6 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     except Exception as e:
-
         await loading.edit_text(
             f"❌ Add Failed\n\n{e}"
         )
@@ -1638,9 +1866,6 @@ app.add_handler(
     CommandHandler("removeadmin", removeadmin)
 )
 app.add_handler(
-    CommandHandler("scamlist", scamlist)
-)
-app.add_handler(
     CommandHandler("groupscan", groupscan)
 )
 app.add_handler(
@@ -1649,6 +1874,18 @@ app.add_handler(
 app.add_handler(CommandHandler("report", report))
 app.add_handler(
     CallbackQueryHandler(report_callback, pattern="^report_")
+)
+app.add_handler(
+    CommandHandler("scamlist", scamlist)
+)
+app.add_handler(
+    MessageHandler(
+        filters.ChatType.GROUPS & ~filters.COMMAND,
+        auto_scam_detector
+    )
+)
+app.add_handler(
+    CommandHandler("groups", groups)
 )
 
 
